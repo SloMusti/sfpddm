@@ -26,6 +26,9 @@ SFPddm sfp;
 
 byte supp;
 
+// counter
+int count = 0;
+
 // Setup
 void setup()
 {
@@ -48,28 +51,55 @@ void setup()
 void loop(){
 
   if(supp&0x40){
-    //readMeasurements from the SFP
-    sfp.readMeasurements();
-    
-    Serial.print("Temperature: ");
-    Serial.print(sfp.getTemperature()/256,DEC);
-    Serial.println(" C");
-    
-    Serial.print("Voltage: ");
-    Serial.print(sfp.getVoltage(),DEC);
-    Serial.println(" uV");
-    
-    Serial.print("TX current: ");
-    Serial.print(sfp.getTXcurrent(),DEC);
-    Serial.println(" uA");
-    
-    Serial.print("TX power: ");
-    Serial.print(sfp.getTXpower(),DEC);
-    Serial.println(" uW");
-    
-    Serial.print("RX power: ");
-    Serial.print(sfp.getRXpower(),DEC);
-    Serial.println(" uW");
+    //readMeasurements from the SFP and check for errors
+    if(!sfp.readMeasurements()){
+      Serial.println("");
+      Serial.print("SFPddm monitoring, reading:");
+      Serial.println(count++);
+      
+      Serial.print("Temperature: ");
+      Serial.print(sfp.getTemperature()/256,DEC);
+      Serial.println(" C");
+      
+      Serial.print("Voltage: ");
+      Serial.print(sfp.getVoltage(),DEC);
+      Serial.println(" uV");
+      
+      Serial.print("TX current: ");
+      Serial.print(sfp.getTXcurrent(),DEC);
+      Serial.println(" uA");
+      
+      Serial.print("TX power: ");
+      Serial.print(sfp.getTXpower(),DEC);
+      Serial.println(" uW");
+      
+      Serial.print("RX power: ");
+      Serial.print(sfp.getRXpower(),DEC);
+      Serial.println(" uW");
+      
+      Serial.print("Warnings: 0x");
+      Serial.println(sfp.getWarnings(),HEX);
+      
+      Serial.print("Alarms: 0x");
+      Serial.println(sfp.getAlarms(),HEX);
+      
+      //get control register
+      byte control = sfp.getControl();
+      Serial.print("Control: 0x");
+      Serial.println(control,HEX);
+      
+      //set control register
+      byte command=0x00;
+      //0x40 - disable TX
+      //0x80 - rate select
+      sfp.setControl((control&0xB7)|(command&0x48));
+      //Serial.println("TX disabled");
+    }
+    else{
+      Serial.print("Error! Check if SFP is present.");
+      //restart
+      setup();   
+    }
   }
   delay(1000);
 }
