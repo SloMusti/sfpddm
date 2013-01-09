@@ -44,6 +44,8 @@ class SFPddm
     uint16_t getTXcurrent();
     uint16_t getTXpower();
     uint16_t getRXpower();
+    uint16_t getAlarms();
+    uint16_t getWarnings();
 
   // library-accessible "private" interface
   private:
