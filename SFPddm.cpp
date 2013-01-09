@@ -1,6 +1,25 @@
 /*
   SFPddm.cpp - SFPddm library
+
+Copyright 2013 Luka Mustafa - Musti, musti@wlan-si.net
+
+This file is part of the SFPddm library for Arduino
+
+The SFPddm library is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by the
+Free Software Foundation, either version 3 of the License, or (at your
+option) any later version.
+
+The SFPddm library is distributed in the hope that it will be useful, but
+WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+or FITNESS FOR A PARTICULAR PURPOSE.
+See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along
+with the SFPddm library. If not, see http://www.gnu.org/licenses/.
+
 */
+
 
 // Includes
 
@@ -20,24 +39,40 @@
 // error variable
 uint8_t error;
 // calibration data variables
-uint8_t cal_general[4]; 
+
+struct _cal{
+  uint16_t t_slope;
+  int16_t t_off;
+  uint16_t v_slope;
+  int16_t v_off;
+  uint16_t txc_slope;
+  int16_t txc_off;
+  uint16_t txp_slope;
+  int16_t txp_off;
+};
+_cal cal_general = {1,0,1,0,1,0,1,0};
+
 float cal_rxpower[5]; 
 //raw measurement buffer
-uint8_t raw_buffer[];
+uint8_t raw_buffer[10];
+//uint8_t raw_buffer[10]={0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,0x09,0x0A};
 //measurement values
-int16_t temperature;
-uint16_t voltage;
-uint16_t TXcurrent;
-uint16_t TXpower;
-uint16_t RXpower;
+
+struct _meas {
+  int16_t temperature;
+  uint16_t voltage;
+  uint16_t TXcurrent;
+  uint16_t TXpower;
+  uint16_t RXpower;
+};
+_meas measdata = {0,0,0,0,0};
+
+
 uint16_t alarms;
 uint16_t warnings;
 //supported modes flags
 uint8_t supported;
 //contains register A0/92
-
-
-
 
 // Constructor /////////////////////////////////////////////////////////////////
 
@@ -56,13 +91,13 @@ uint8_t SFPddm::begin(void){
   // enable timeout
   
   // test if device is present and read modes
-  error|=I2c.read(INFOADDR,92, 1, (uint8_t*)&supported); 
+  error|=I2c.read(INFOADDR,92, 1,&supported); 
   // stop if not present
   if(error){
     return error;
   }
   // if DDM mode is supported and externally callibrated
-  if(supported&0x08){
+  if(supported&0x40){
     getCalibrationData();
   }
   
@@ -83,26 +118,32 @@ uint8_t SFPddm::getStatus(){
   return error;
 }
 
+// This function can be used to get the supported information
+uint8_t SFPddm::getSupported(){
+  return supported;
+}
+
 // The function acquires the measurements and returns an error code if sth went wrong, 0x00 is OK
-uint8_t SFPddm::getMeasurements(){
+uint8_t SFPddm::readMeasurements(){
   int i;
-  //store measurements
-  byte *pMeas = (byte*)&raw_meas;
-  //read diagnostic measurements registers 96-105 of 0xA2
-  error|=I2c.read(DDMADDR, 96, 10, pMeas);
+  //read diagnostic measurements registers 96-105 of 0xA2, store them in buffer
+  error|=I2c.read(DDMADDR, 96, 10, (byte*)&raw_buffer);
   
-  //calibration if external data
-  if(supported&0x08){
-    //calibrate measurements
-    for(i=0;i<4;i++){
-        //data[i]=calibrateMeasurement(meas[i], meascal[2*i], meascal[2*i+1]);
-    }
-    //calibrate RX power separately
-    //data[4]=calibrateRXpower(meas[4], &rxpowercal[0]);
-  
+  //copy raw measurements to results union
+  uint8_t *p_meas = (uint8_t*)&measdata;
+  for(i=0;i<10;i+=2){
+    *p_meas++ =raw_buffer[i+1];
+    *p_meas++ =raw_buffer[i];
   }
-  else{
-    //return data
+  //calibration if external data
+  if(supported&0x10){
+    Serial.print("External.");
+    measdata.temperature=calibrateTemperature(measdata.temperature, cal_general.t_slope, cal_general.t_off);
+    measdata.voltage=calibrateMeasurement(measdata.voltage, cal_general.v_slope, cal_general.v_off);
+    measdata.TXcurrent=calibrateMeasurement(measdata.TXcurrent, cal_general.txc_slope, cal_general.txc_off);
+    measdata.TXpower=calibrateMeasurement(measdata.TXpower, cal_general.txp_slope, cal_general.txp_off);
+    measdata.RXpower=calibrateRXpower(measdata.RXpower, &cal_rxpower[0]);
+  
   }
   
 return error;
@@ -121,29 +162,29 @@ void SFPddm::setControl(uint8_t data){
   error|=I2c.write(DDMADDR,110, data&0xFF);
 }
 
-// The function returns the temperature , signed
+// The function returns the temperature , signed.
 int16_t SFPddm::getTemperature(){
-  return temperature;
+  return measdata.temperature;
 }
 
 // The function returns the supply voltage , unsigned
 uint16_t SFPddm::getVoltage(){
-  return voltage;
+  return measdata.voltage;
 }
 
 // The function returns the supply current , unsigned
 uint16_t SFPddm::getTXcurrent(){
- return TXcurrent;
+  return measdata.TXcurrent;
 }
 
 // The function returns the TX power , unsigned
 uint16_t SFPddm::getTXpower(){
-  return TXpower;
+  return measdata.TXpower;
 }
 
 // The function returns the RX power , unsigned
 uint16_t SFPddm::getRXpower(){
-  return RXpower;
+  return measdata.RXpower;
 }
 
 // Private Methods /////////////////////////////////////////////////////////////
@@ -176,13 +217,25 @@ void SFPddm::getCalibrationData(){
   for(i=20;i<36;i+=2){
   //this goes from 0xA2 SFP bytes 76-91
   //write data to pointer location and increment pointer
+  //beware od the endiness
     *pCal++ =calData[i+1];
     *pCal++ =calData[i];
   }
 }
 
 // This function calibrates all values except RX power and temperature
-int16_t SFPddm::calibrateMeasurement(int16_t rawdata, uint16_t slope, int16_t offset)
+uint16_t SFPddm::calibrateMeasurement(uint16_t rawdata, uint16_t slope, int16_t offset)
+{
+  int32_t temporary = slope;
+  temporary *= rawdata;
+  //safe to use signed for all function, values do not overflow
+  int16_t result = (temporary>>8 + offset);
+  
+  return result;
+}
+
+// This function calibrates temperature
+int16_t SFPddm::calibrateTemperature(int16_t rawdata, uint16_t slope, int16_t offset)
 {
   int32_t temporary = slope;
   temporary *= rawdata;

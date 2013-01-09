@@ -1,5 +1,23 @@
 /*
   SFPddm.h - SFPddm library 
+  
+Copyright 2013 Luka Mustafa - Musti, musti@wlan-si.net
+
+This file is part of the SFPddm library for Arduino
+
+The SFPddm library is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by the
+Free Software Foundation, either version 3 of the License, or (at your
+option) any later version.
+
+The SFPddm library is distributed in the hope that it will be useful, but
+WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+or FITNESS FOR A PARTICULAR PURPOSE.
+See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along
+with the SFPddm library. If not, see http://www.gnu.org/licenses/.
+
 */
 
 // ensure this library description is only included once
@@ -17,7 +35,8 @@ class SFPddm
     uint8_t begin(void);
     void getRawInfo(uint8_t addr, uint8_t *data);
     uint8_t getStatus();
-    uint8_t getMeasurements();
+    uint8_t getSupported();
+    uint8_t readMeasurements();
     uint8_t getControl();
     void setControl(uint8_t data);
     int16_t getTemperature();
@@ -25,21 +44,12 @@ class SFPddm
     uint16_t getTXcurrent();
     uint16_t getTXpower();
     uint16_t getRXpower();
-    
-    
-    uint8_t checkSFP(void);
-    uint8_t errorcheck(void);
-    uint8_t readDMT(void);
-    void setControlSFP(uint8_t control);
-    uint8_t getControlSFP(void);
-    void getMeasurementsSFP(uint16_t *data);
-    void getAlarmsSFP(uint8_t *abuffer);
-    void getWarningsSFP(uint8_t *wbuffer);
 
   // library-accessible "private" interface
   private:
     void getCalibrationData();
-    int16_t calibrateMeasurement(int16_t rawdata, uint16_t slope, int16_t offset);
+    uint16_t calibrateMeasurement(uint16_t rawdata, uint16_t slope, int16_t offset);
+    int16_t calibrateTemperature(int16_t rawdata, uint16_t slope, int16_t offset);
     uint16_t calibrateRXpower(uint16_t rawdata, float *calibrationRX);
 };
 
