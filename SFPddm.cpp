@@ -91,7 +91,8 @@ SFPddm::SFPddm()
 uint8_t SFPddm::begin(void){
   I2c.begin();
   I2c.pullup(true);
-  // enable timeout
+  I2c.setSpeed(1); //400kHz
+  //I2c.timeOut(500); //500ms timeout
   
   //reset error
   error=0x00;
