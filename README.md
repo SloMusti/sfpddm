@@ -23,7 +23,7 @@ TP-Link MC220L media converter is an Ethernet to SFP converter for use with SFP 
 
 SFP module 4 and 5 pins are used for I2C communication and can be located on the bottom side of the PCB. There is an array of resistor footprints, most of them unpopulated. Left (orientation normal to the solder mask) resistor pads of footprints R57-SCL and R55-SDA. SFP power supply decoupling and filtering section is located on the top side of the PCB, to the right of the SFP cage. For best noise performance and decoupling of additional circuitry, 3.3V power must be taken from the mid point between the two inductors with markings IR0. Ground should be taken from the capacitor pads C58 of C57.
 
-![alt text](sfpddm/mcmod.jpg "Connecting to the I2C on MC220L")
+![modimg](/mcmod.jpg "Connecting to the I2C on MC220L")
 
 Detailed instructions can be found in MC220Lmod.pdf document.
 
