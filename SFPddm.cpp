@@ -33,6 +33,19 @@ with the SFPddm library. If not, see http://www.gnu.org/licenses/.
 #define INFOADDR    0x50 // addr A0/1
 #define DDMADDR     0x51 // addr A2/3
 
+// Uncomment if HW SFP connections are present for Enhanced options
+#define HWSFP
+
+#ifdef HWSFP
+// Hardware SFP connections
+#define TX_DISABLE    A2
+#define TX_FAULT      A3
+#define RX_LOS        3 //int 1
+#define RATE_SELECT   A7
+#define MOD_DEF_0     A6
+
+#endif
+
 
 // Private variables
 
@@ -77,6 +90,11 @@ _meas measdata={0,0,0,0,0,0,0,0,0,0,0};
 uint8_t supported;
 //contains register A0/92
 
+//supported ddm modes flags
+uint8_t ddmmodes;
+//contains register A0/93
+
+
 // Constructor /////////////////////////////////////////////////////////////////
 
 SFPddm::SFPddm()
@@ -96,14 +114,32 @@ uint8_t SFPddm::begin(void){
   
   //reset error
   error=0x00;
-  // test if device is present and read modes
-  error|=I2c.read(INFOADDR,92, 1,&supported); 
+  
+  #ifdef HWSFP
+  // configure pins
+  pinMode(TX_DISABLE, OUTPUT); 
+  pinMode(TX_FAULT, INPUT); 
+  pinMode(RX_LOS, INPUT); 
+  pinMode(RATE_SELECT, OUTPUT); 
+  pinMode(MOD_DEF_0, INPUT);  
+
+  // test if the device is inserted
+  if(digitalRead(MOD_DEF_0)!=HIGH){
+    error=0xFF;
+    return error;
+  }
+  #endif
+  
+  // test device communication and read modes
+  error|=I2c.read(INFOADDR,92, 1,&supported);
   // stop if not present
   if(error){
     return error;
   }
   // if DDM mode is supported and externally callibrated
   if(supported&0x40){
+    // check which DDM modes are supported
+    error|=I2c.read(INFOADDR,93, 1,&ddmmodes); 
     getCalibrationData();
   }
   
@@ -129,6 +165,11 @@ uint8_t SFPddm::getSupported(){
   return supported;
 }
 
+// This function can be used to get the DDM supported control flags
+uint8_t SFPddm::getDDMmodes(){
+  return ddmmodes;
+}
+
 // The function acquires the measurements and returns an error code if sth went wrong, 0x00 is OK
 uint8_t SFPddm::readMeasurements(){
   int i;
@@ -141,6 +182,26 @@ uint8_t SFPddm::readMeasurements(){
     *p_meas++ =raw_buffer[i+1];
     *p_meas++ =raw_buffer[i];
   }
+  
+  
+  //get raw values from hardware pins if enabled
+  // txfaultstate (bit 2)
+  // rxlosstate (bit 1) 
+  #ifdef HWSFP
+  //mask
+  measdata.status&=0xF9;
+  //read
+  if(digitalRead(TX_FAULT)==HIGH){
+    measdata.status|=0x04;
+  }
+  //read
+  if(digitalRead(RX_LOS)==HIGH){
+    measdata.status|=0x02;
+  }
+  #endif
+  
+  
+  
   //calibration if external data
   if(supported&0x10){
     measdata.temperature=calibrateTemperature(measdata.temperature, cal_general.t_slope, cal_general.t_off);
@@ -159,8 +220,21 @@ uint8_t SFPddm::getControl(){
 }
 // The function sets the value of the control register (0xA2 memory, register 110)
 void SFPddm::setControl(uint8_t data){
+  // Software control
+  #ifndef HWSFP
   //write the byte (not all bits are writable!)
-  error|=I2c.write(DDMADDR,110, data&0xFF);
+  error|=I2c.write(DDMADDR,110, 0x40);
+  #endif
+  
+  // Hardware control if enabled
+  #ifdef HWSFP
+  if((data&0x40)!=0x00){
+    digitalWrite(TX_DISABLE, HIGH);
+  }
+  if((data&0x10)!=0x00){
+    digitalWrite(TX_DISABLE, HIGH);
+  } 
+  #endif
 }
 
 // The function returns the temperature , signed.

@@ -36,6 +36,7 @@ class SFPddm
     void getRawInfo(uint8_t addr, uint8_t *data);
     uint8_t getStatus();
     uint8_t getSupported();
+    uint8_t getDDMmodes();
     uint8_t readMeasurements();
     uint8_t getControl();
     void setControl(uint8_t data);
