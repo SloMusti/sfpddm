@@ -13,17 +13,17 @@ SFPddm	KEYWORD1
 #######################################
 
 begin	KEYWORD2
-getRawInfo KEYWORD2
-getStatus KEYWORD2
-getSupported KEYWORD2
-readMeasurements KEYWORD2
-getControl KEYWORD2
-setControl KEYWORD2
-getTemperature KEYWORD2
-getVoltage KEYWORD2
-getTXcurrent KEYWORD2
-getTXpower KEYWORD2
-getRXpower KEYWORD2
+getRawInfo	KEYWORD2
+getStatus	KEYWORD2
+getSupported	KEYWORD2
+readMeasurements	KEYWORD2
+getControl	KEYWORD2
+setControl	KEYWORD2
+getTemperature	KEYWORD2
+getVoltage	KEYWORD2
+getTXcurrent	KEYWORD2
+getTXpower	KEYWORD2
+getRXpower	KEYWORD2
 
 #######################################
 # Instances (KEYWORD2)
